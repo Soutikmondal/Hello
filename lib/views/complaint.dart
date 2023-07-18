@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_barcode_scanner/flutter_barcode_scanner.dart';
 import 'package:intl/intl.dart';
 import 'package:hello/constants/routes.dart';
 import 'package:hello/enum/menu_items.dart';
@@ -159,10 +161,19 @@ class _ComplaintViewState extends State<ComplaintView> {
     refreshJournals();
   }
 
-  // Future<void> _deleteItem({required String email}) async {
-  //   await _sqlHelper.deleteItem(email:email);
-  //   refreshJournals();
-  // }
+  Future<void> scanBarcode() async {
+    String barcodeScanres;
+    try {
+      barcodeScanres = await FlutterBarcodeScanner.scanBarcode(
+          '#FFFFFF', 'Cancel', true, ScanMode.BARCODE);
+    } on PlatformException {
+      barcodeScanres = 'Failed to get Platform version';
+    }
+    setState(() {
+      _idController.text = barcodeScanres;
+    });
+  }
+
   int returnId(Map<String, dynamic> existingJournal, String dur) {
     int index = existingJournal[dur].indexOf('Days');
     if (index == -1) {
@@ -226,12 +237,15 @@ class _ComplaintViewState extends State<ComplaintView> {
                       controller: _idController,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
-                        hintText: 'Patient Id',
-                        border: InputBorder.none,
                         filled: true,
                         fillColor: Colors.white,
+                        suffixIcon: IconButton(
+                            onPressed: scanBarcode,
+                            icon: const Icon(Icons.qr_code)),
+                        hintText: "Enter patient ID or Scan",
                         enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(width: 1, color: Colors.black),
+                          borderSide:
+                              const BorderSide(width: 1, color: Colors.black),
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),

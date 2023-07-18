@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/services.dart';
+import 'package:flutter_barcode_scanner/flutter_barcode_scanner.dart';
 import 'package:hello/services/crud/vitals_CRUD.dart';
 import 'package:intl/intl.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -117,6 +119,19 @@ class _NotesViewState extends State<NotesView> {
     }
   }
 
+  Future<void> scanBarcode() async {
+    String barcodeScanres;
+    try {
+      barcodeScanres = await FlutterBarcodeScanner.scanBarcode(
+          '#FFFFFF', 'Cancel', true, ScanMode.BARCODE);
+    } on PlatformException {
+      barcodeScanres = 'Failed to get Platform version';
+    }
+    setState(() {
+      _idController.text = barcodeScanres;
+    });
+  }
+
   Future<void> _addItem() async {
     String temp = _tempuratureController.text + " " + _selectedVal;
 
@@ -132,11 +147,6 @@ class _NotesViewState extends State<NotesView> {
         uploaded: 'false');
     refreshJournals();
   }
-
-  // Future<void> _deleteItem({required String email}) async {
-  //   await _sqlHelper.deleteItem(email:email);
-  //   refreshJournals();
-  // }
 
   void _showForm(int? id) async {
     if (id != null) {
@@ -178,18 +188,18 @@ class _NotesViewState extends State<NotesView> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     TextField(
-                      // enableSuggestions: false,
-                      // autocorrect: false,
-                      // keyboardType: TextInputType.emailAddress,
                       controller: _idController,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
-                        hintText: 'Patient id',
-                        border: InputBorder.none,
                         filled: true,
                         fillColor: Colors.white,
+                        suffixIcon: IconButton(
+                            onPressed: scanBarcode,
+                            icon: const Icon(Icons.qr_code)),
+                        hintText: "Enter patient ID or Scan",
                         enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(width: 1, color: Colors.black),
+                          borderSide:
+                              const BorderSide(width: 1, color: Colors.black),
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
