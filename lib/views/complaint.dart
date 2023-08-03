@@ -1,9 +1,16 @@
 import 'dart:convert';
+import 'dart:developer';
+import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:file_picker/file_picker.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_barcode_scanner/flutter_barcode_scanner.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import 'package:hello/views/upload_file.dart';
 import 'package:intl/intl.dart';
 import 'package:hello/constants/routes.dart';
 import 'package:hello/enum/menu_items.dart';
@@ -14,6 +21,8 @@ import 'package:workmanager/workmanager.dart';
 import '../enum/menu_action.dart';
 import 'package:http/http.dart' as http;
 
+import '../services/auth/block/auth_bloc.dart';
+import '../services/auth/block/auth_event.dart';
 import '../services/crud/complaint_CRUD.dart';
 
 class ComplaintView extends StatefulWidget {
@@ -24,6 +33,37 @@ class ComplaintView extends StatefulWidget {
 }
 
 class _ComplaintViewState extends State<ComplaintView> {
+  String? file_name;
+  PlatformFile? picked_file;
+  File? file_to_display;
+  FilePickerResult? result;
+  String? file_path;
+  Uint8List? _file;
+  File? file;
+  Uint8List? imageInUnit8List;
+  void pickfile() async {
+    try {
+      result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+      );
+      if (result != null) {
+        setState(() {
+          file_name = result!.files.first.name;
+          picked_file = result!.files.first;
+          file_path = picked_file!.path.toString();
+          file_to_display = File(picked_file!.path.toString());
+          _file = file_to_display!.readAsBytesSync();
+
+          _reportlinkController.text = file_path!;
+        });
+      }
+    } catch (e) {
+      log("error $e");
+      rethrow;
+    }
+  }
+
   Connectivity connectivity = Connectivity();
   late final SQLHelper _sqlHelper;
   List<Map<String, dynamic>> _journals = [];
@@ -85,6 +125,7 @@ class _ComplaintViewState extends State<ComplaintView> {
   TextEditingController _entrydateController = TextEditingController();
   TextEditingController _sernoController = TextEditingController();
   TextEditingController _idController = TextEditingController();
+
   Future<void> _updateItem(
       {required int id,
       required String comp1,
@@ -125,19 +166,6 @@ class _ComplaintViewState extends State<ComplaintView> {
   Future<void> _delete({required int id}) async {
     await _sqlHelper.deleteItem(id: id);
     refreshJournals();
-  }
-
-  Future<void> insertRecord(String comp1, dur1, hdmy1) async {
-    try {
-      String uri = "http://10.0.2.2/project/insert_record.php";
-      await http.post(Uri.parse(uri), body: {
-        "comp1": comp1,
-        "dur1": dur1,
-        "hdmy1": hdmy1,
-      });
-    } catch (e) {
-      print(e);
-    }
   }
 
   Future<void> _addItem() async {
@@ -211,11 +239,19 @@ class _ComplaintViewState extends State<ComplaintView> {
       _selectedVal2 = res;
       _hdmy3Controller.text = existingJournal['hdmy3'];
       _rhController.text = existingJournal['rh'];
+
       _reportlinkController.text = existingJournal['reportlink'];
+
+      // final tempDir = await getTemporaryDirectory();
+
+      // file = await File('${tempDir.path}/image.jpg').create();
+      // file!.writeAsBytesSync(imageInUnit8List!);
+
       _testdateController.text = existingJournal['testdate'];
       _entrydateController.text = existingJournal['entrydate'];
       _sernoController.text = existingJournal['serno'];
     }
+    // ignore: use_build_context_synchronously
     showModalBottomSheet(
         context: context,
         elevation: 5,
@@ -543,6 +579,11 @@ class _ComplaintViewState extends State<ComplaintView> {
                       decoration: InputDecoration(
                         hintText: 'reportlink',
                         border: InputBorder.none,
+                        suffixIcon: IconButton(
+                            onPressed: () {
+                              pickfile();
+                            },
+                            icon: const Icon(Icons.camera)),
                         filled: true,
                         fillColor: Colors.white,
                         enabledBorder: OutlineInputBorder(
@@ -554,6 +595,11 @@ class _ComplaintViewState extends State<ComplaintView> {
                       style: const TextStyle(
                           fontSize: 10, fontWeight: FontWeight.w700),
                     ),
+                    const SizedBox(height: 5),
+                    // SizedBox(
+                    //   height: 100,
+                    //   child: Image.file(file!),
+                    // ),
                     const SizedBox(height: 5),
                     TextField(
                       controller: _testdateController,
@@ -670,7 +716,7 @@ class _ComplaintViewState extends State<ComplaintView> {
                           _dur1Controller.text = '';
                           _entrydateController.text = '';
                           _comp2Controller.text = '';
-
+                          file_path = '';
                           _dur2Controller.text = '';
                           _hdmy2Controller.text = '';
                           _comp3Controller.text = '';
@@ -700,8 +746,7 @@ class _ComplaintViewState extends State<ComplaintView> {
     } else if (item.text == 'logout') {
       final shouldLogout = await showLogOutDialog(context);
       if (shouldLogout) {
-        await Authservice.firebase().logOut();
-        Navigator.of(context).pushNamedAndRemoveUntil(loginroute, (_) => false);
+        context.read<AuthBloc>().add(const AuthEventLogOut());
       }
     }
   }
@@ -781,17 +826,8 @@ class _ComplaintViewState extends State<ComplaintView> {
                                 children: [
                                   IconButton(
                                       onPressed: () async {
-                                        // Navigator.push(
-                                        //     context,
-                                        //     MaterialPageRoute(
-                                        //         builder: (context) => UploadSql(
-                                        //               _journals[index]['comp1'],
-                                        //               _journals[index]['dur1'],
-                                        //               _journals[index]['hdmy1'],
-                                        //             )));
-
                                         await Workmanager().registerOneOffTask(
-                                            "UPLOAD", 'first',
+                                            "UPLOAD", 'second',
                                             constraints: Constraints(
                                                 networkType:
                                                     NetworkType.connected),
@@ -799,7 +835,27 @@ class _ComplaintViewState extends State<ComplaintView> {
                                               'comp1': _journals[index]
                                                   ['comp1'],
                                               'dur1': _journals[index]['dur1'],
-                                              'hdmy1': _journals[index]['hdmy1']
+                                              'hdmy1': _journals[index]
+                                                  ['hdmy1'],
+                                              'comp2': _journals[index]
+                                                  ['comp2'],
+                                              'dur2': _journals[index]['dur2'],
+                                              'hdmy2': _journals[index]
+                                                  ['hdmy2'],
+                                              'comp3': _journals[index]
+                                                  ['comp3'],
+                                              'dur3': _journals[index]['dur3'],
+                                              'hdmy3': _journals[index]
+                                                  ['hdmy3'],
+                                              'rh': _journals[index]['rh'],
+                                              'reportlink': _journals[index]
+                                                  ['reportlink'],
+                                              'testdate': _journals[index]
+                                                  ['testdate'],
+                                              'entrydate': _journals[index]
+                                                  ['entrydate'],
+                                              'serno': _journals[index]
+                                                  ['serno'],
                                             });
                                         await _updateItem(
                                             id: _journals[index]['id'],

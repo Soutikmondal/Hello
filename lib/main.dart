@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hello/constants/routes.dart';
-import 'package:hello/services/auth/auth_service.dart';
+import 'package:hello/services/API/api_services.dart';
+import 'package:hello/services/auth/block/auth_bloc.dart';
+import 'package:hello/services/auth/block/auth_event.dart';
+import 'package:hello/services/auth/block/auth_states.dart';
+import 'package:hello/services/auth/firebase_auth_provide.dart';
 import 'package:hello/views/complaint.dart';
 
 import 'package:hello/views/login_view.dart';
@@ -14,30 +19,53 @@ import 'package:hello/views/vitals.dart';
 
 import 'package:permission_handler/permission_handler.dart';
 import 'package:workmanager/workmanager.dart';
-import 'package:http/http.dart' as http;
 
-Future<void> insertRecord(String name, stytolic, diatolic, uploaded) async {
-  try {
-    String uri = "http://10.0.2.2/project/insert_record.php";
-    await http.post(Uri.parse(uri), body: {
-      "name": name,
-      "stytolic": stytolic,
-      "dytolic": diatolic,
-      "uploaded": uploaded,
-    });
-  } catch (e) {
-    print(e);
-  }
-}
+import 'Helper/loading/loading.dart';
 
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     //simpleTask will be emitted here.
-    String? name = inputData?['name'].toString();
-    String? stytolic = inputData?['stytolic'].toString();
-    String? dytolic = inputData?['dytolic'].toString();
+    // String? id = "VBCR0192105200002";
+    if (task == "first") {
+      String? tempurature = inputData?['tempurature'].toString();
+      String? resprate = inputData?['resprate'].toString();
+      String? testdate = inputData?['testdate'].toString();
+      String? bloodpres = inputData?['bldpres'].toString();
+      String? pulox = inputData?['pulox'].toString();
+      String? entrydate = inputData?['entrydate'].toString();
+      // String? serno = inputData?['serno'].toString();
 
-    await insertRecord(name!, stytolic!, dytolic!, 'true');
+      await ApiServices.uploadVitals(
+          tempurature: tempurature!,
+          resprate: resprate!,
+          pulse: pulox!,
+          bldPres: bloodpres!,
+          entrydate: entrydate!,
+          testdate: testdate!);
+      print("hiiiiiiiiiiiiiiiiiii");
+    } else if (task == "second") {
+      String? comp1 = inputData?['comp1'].toString();
+      String? comp2 = inputData?['comp2'].toString();
+      String? comp3 = inputData?['comp3'].toString();
+      String? dur1 = inputData?['dur1'].toString();
+      String? dur2 = inputData?['dur2'].toString();
+      String? entrydate = inputData?['entrydate'].toString();
+      String? dur3 = inputData?['dur3'].toString();
+      String? hdmy1 = inputData?['hdmy1'].toString();
+      String? hdmy2 = inputData?['hdmy2'].toString();
+      String? hdmy3 = inputData?['hdmy3'].toString();
+      await ApiServices.uploadComplaint(
+          comp1: comp1!,
+          comp2: comp2!,
+          comp3: comp3!,
+          dur1: dur1!,
+          dur2: dur2!,
+          dur3: dur3!,
+          durUnit1: hdmy1!,
+          durUnit2: hdmy2!,
+          durUnit3: hdmy3!);
+    }
+
     return Future.value(true);
   });
 }
@@ -65,7 +93,10 @@ void main() async {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const HomePage(),
+      home: BlocProvider<AuthBloc>(
+        create: (context) => AuthBloc(FirebaseAuthProvider()),
+        child: HomePage(),
+      ),
       routes: {
         loginroute: (context) => const LoginView(),
         registerroute: (context) => const RegisterView(),
@@ -84,32 +115,30 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: Authservice.firebase().initialize(),
-      builder: (context, snapshot) {
-        switch (snapshot.connectionState) {
-          case ConnectionState.done:
-            final user = Authservice.firebase().currentUser;
-            if (user != null) {
-              if (user.isEmailVerified) {
-                return const NotesView();
-              } else {
-                return const VerifyEmailView();
-              }
-            } else {
-              return const LoginView();
-            }
-          // final sol = user?.emailVerified ?? false;
-          // if (sol) {
-          //   print("The User is verified");
-          //   return const Text('Done');
-          // } else {
-          //   print("Not Verified");
-          //   return const VerifyEmailView();
-          // }
-
-          default:
-            return const CircularProgressIndicator();
+    context.read<AuthBloc>().add(const AuthEventInitialize());
+    return BlocConsumer<AuthBloc, AuthState>(
+      builder: (context, state) {
+        if (state is AuthStateLoggedIn) {
+          return const NotesView();
+        } else if (state is AuthStateNeedsVerification) {
+          return const VerifyEmailView();
+        } else if (state is AuthStateLoggedOut) {
+          return const LoginView();
+        } else if (state is AuthStateRegistering) {
+          return const RegisterView();
+        } else {
+          return const Scaffold(
+            body: CircularProgressIndicator(),
+          );
+        }
+      },
+      listener: (context, state) {
+        if (state.isloading) {
+          LoadingScreen().show(
+              context: context,
+              text: state.loadingText ?? "Please wait a moment...");
+        } else {
+          LoadingScreen().hide();
         }
       },
     );

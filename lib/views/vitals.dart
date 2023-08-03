@@ -1,7 +1,7 @@
-import 'dart:convert';
-
 import 'package:flutter/services.dart';
 import 'package:flutter_barcode_scanner/flutter_barcode_scanner.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
 import 'package:hello/services/crud/vitals_CRUD.dart';
 import 'package:intl/intl.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -17,6 +17,8 @@ import '../enum/menu_action.dart';
 import 'package:http/http.dart' as http;
 
 import '../enum/menu_items.dart';
+import '../services/auth/block/auth_bloc.dart';
+import '../services/auth/block/auth_event.dart';
 
 class NotesView extends StatefulWidget {
   const NotesView({super.key});
@@ -46,17 +48,17 @@ class _NotesViewState extends State<NotesView> {
   List<String> tempUnit = ["Celcius", "Farenheit"];
   String _selectedVal = "";
   List userData = [];
-  Future<void> getdata() async {
-    String uri = "http://10.0.2.2/project/view_data.php";
-    try {
-      var response = await http.get(Uri.parse(uri));
-      setState(() {
-        userData = jsonDecode(response.body);
-      });
-    } catch (e) {
-      print("$e");
-    }
-  }
+  // Future<void> getdata() async {
+  //   String uri = "http://10.0.2.2/project/view_data.php";
+  //   try {
+  //     var response = await http.get(Uri.parse(uri));
+  //     setState(() {
+  //       userData = jsonDecode(response.body);
+  //     });
+  //   } catch (e) {
+  //     print("$e");
+  //   }
+  // }
 
   String dropdownValue = 'Male';
   @override
@@ -64,7 +66,7 @@ class _NotesViewState extends State<NotesView> {
     // TODO: implement initState
     super.initState();
     _sqlHelper = SQLHelper();
-    getdata();
+    // getdata();
 
     refreshJournals();
   }
@@ -446,8 +448,7 @@ class _NotesViewState extends State<NotesView> {
     } else if (item.text == 'logout') {
       final shouldLogout = await showLogOutDialog(context);
       if (shouldLogout) {
-        await Authservice.firebase().logOut();
-        Navigator.of(context).pushNamedAndRemoveUntil(loginroute, (_) => false);
+        context.read<AuthBloc>().add(const AuthEventLogOut());
       }
     }
   }
@@ -527,27 +528,27 @@ class _NotesViewState extends State<NotesView> {
                                 children: [
                                   IconButton(
                                       onPressed: () async {
-                                        // Navigator.push(
-                                        //     context,
-                                        //     MaterialPageRoute(
-                                        //         builder: (context) => UploadSql(
-                                        //               _journals[index]['tempurature'],
-                                        //               _journals[index]['resprate'],
-                                        //               _journals[index]['bldpres'],
-                                        //             )));
-
                                         await Workmanager().registerOneOffTask(
                                             "UPLOAD", 'first',
                                             constraints: Constraints(
                                                 networkType:
                                                     NetworkType.connected),
                                             inputData: {
+                                              'id': _journals[index]['id'],
                                               'tempurature': _journals[index]
                                                   ['tempurature'],
                                               'resprate': _journals[index]
                                                   ['resprate'],
                                               'bldpres': _journals[index]
-                                                  ['bldpres']
+                                                  ['bldpres'],
+                                              'pulox': _journals[index]
+                                                  ['pulox'],
+                                              'testdate': _journals[index]
+                                                  ['testdate'],
+                                              'entrydate': _journals[index]
+                                                  ['entrydate'],
+                                              'serno': _journals[index]
+                                                  ['serno'],
                                             });
                                         await _updateItem(
                                             id: _journals[index]['id'],
@@ -573,7 +574,7 @@ class _NotesViewState extends State<NotesView> {
                                   IconButton(
                                       onPressed: () =>
                                           _delete(id: _journals[index]['id']),
-                                      icon: const Icon(Icons.delete))
+                                      icon: const Icon(Icons.delete)),
                                 ],
                               )),
                         ),
@@ -590,6 +591,9 @@ class _NotesViewState extends State<NotesView> {
       floatingActionButton: FloatingActionButton(
         child: const Icon(Icons.add),
         onPressed: () => _showForm(null),
+        // onPressed: () async {
+        //   await ApiServices.uploadVitals(context: context);
+        // },
       ),
     );
   }
