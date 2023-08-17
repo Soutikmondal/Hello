@@ -9,8 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_barcode_scanner/flutter_barcode_scanner.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hello/services/API/api_services.dart';
 
-import 'package:hello/views/upload_file.dart';
 import 'package:intl/intl.dart';
 import 'package:hello/constants/routes.dart';
 import 'package:hello/enum/menu_items.dart';
@@ -857,6 +857,11 @@ class _ComplaintViewState extends State<ComplaintView> {
                                               'serno': _journals[index]
                                                   ['serno'],
                                             });
+                                        await ApiServices.uploadPatientFile(
+                                            pat_id: _journals[index]['id']
+                                                .toString(),
+                                            path: _journals[index]['reportlink']
+                                                .toString());
                                         await _updateItem(
                                             id: _journals[index]['id'],
                                             comp1: _journals[index]['comp1'],

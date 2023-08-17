@@ -1,7 +1,10 @@
 import 'dart:convert';
 import 'dart:developer';
-import 'dart:io';
 
+import 'dart:io' as io;
+
+import 'package:dio/dio.dart';
+import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 
 import '../../constants/api_constants.dart';
@@ -34,7 +37,7 @@ class ApiServices {
       Map jsonResponse = jsonDecode(response.body);
 
       if (jsonResponse['status'] != "success") {
-        throw HttpException('Error:${jsonResponse["message"]}');
+        throw io.HttpException('Error:${jsonResponse["message"]}');
       } else {
         // await showErrorDialog(context, jsonResponse['message']);
         print("message: $jsonResponse['message']");
@@ -80,7 +83,7 @@ class ApiServices {
       Map jsonResponse = jsonDecode(response.body);
 
       if (jsonResponse['status'] != "success") {
-        throw HttpException('Error:${jsonResponse["message"]}');
+        throw io.HttpException('Error:${jsonResponse["message"]}');
       } else {
         print("message: $jsonResponse['message']");
       }
@@ -89,7 +92,39 @@ class ApiServices {
       rethrow;
     }
   }
-  //  static Future<void> uploadComplaint()async{
 
-  //  }
+  static Future<void> uploadPatientFile(
+      {required String pat_id, required String path}) async {
+    Image file = Image.file(io.File(path));
+
+      var request = http.MultipartRequest(
+        "POST",
+        Uri.parse("$BASE_URL2/upload-file"),
+      );
+      request.headers['Authorization'] = 'Bearer $API_KEY';
+      request.fields['pat_id'] = 'VBCR0192105200002';
+      var picture = await http.MultipartFile.fromPath('file', path);
+      request.files.add(picture);
+      var response = await request.send();
+      var responseData = await response.stream.toBytes();
+      var result = String.fromCharCodes(responseData);
+
+      print(result);
+    // Dio dio = new Dio(); // with default Options
+
+    // FormData formData = new FormData.fromMap({
+    //   "file": await MultipartFile.fromFile(path),
+    //   "pat_id": "1234",
+    // });
+
+    // var response = await dio.post("$BASE_URL2/upload-file", data: formData);
+
+    // if (response.statusCode == 200) {
+    //   //apiResponse.onSuccess(response.toString(), eventType);
+    //   print("Image Uploaded");
+    // } else {
+    //   //apiResponse.onError('Failed to load post');
+    //   print("Upload Failed");
+    // }
+  }
 }
